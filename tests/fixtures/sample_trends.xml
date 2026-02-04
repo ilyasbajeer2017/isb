@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Daily Trends</title>
+    <item>
+      <title>Sample Topic One</title>
+    </item>
+    <item>
+      <title>Sample Topic Two</title>
+    </item>
+  </channel>
+</rss>

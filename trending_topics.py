@@ -12,6 +12,20 @@ DEFAULT_GEO = "US"
 DEFAULT_LIMIT = 10
 
 
+def parse_trending_topics(xml_data: bytes) -> list[str]:
+    root = ET.fromstring(xml_data)
+    channel = root.find("channel")
+    if channel is None:
+        return []
+
+    topics: list[str] = []
+    for item in channel.findall("item"):
+        title = item.findtext("title")
+        if title:
+            topics.append(title.strip())
+    return topics
+
+
 def fetch_trending_topics(geo: str) -> list[str]:
     url = (
         "https://trends.google.com/trends/trendingsearches/daily/rss?"
@@ -23,17 +37,7 @@ def fetch_trending_topics(geo: str) -> list[str]:
     except urllib.error.URLError as exc:
         raise RuntimeError(f"Failed to fetch trends data: {exc}") from exc
 
-    root = ET.fromstring(data)
-    channel = root.find("channel")
-    if channel is None:
-        return []
-
-    topics: list[str] = []
-    for item in channel.findall("item"):
-        title = item.findtext("title")
-        if title:
-            topics.append(title.strip())
-    return topics
+    return parse_trending_topics(data)
 
 
 def format_topics(topics: list[str], limit: int) -> str:
@@ -61,16 +65,29 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=DEFAULT_LIMIT,
         help="Number of topics to display (default: 10).",
     )
+    parser.add_argument(
+        "--source-file",
+        help="Path to an RSS XML file to parse instead of fetching online.",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    try:
-        topics = fetch_trending_topics(args.geo)
-    except RuntimeError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
+    if args.source_file:
+        try:
+            with open(args.source_file, "rb") as handle:
+                xml_data = handle.read()
+            topics = parse_trending_topics(xml_data)
+        except OSError as exc:
+            print(f"Failed to read source file: {exc}", file=sys.stderr)
+            return 1
+    else:
+        try:
+            topics = fetch_trending_topics(args.geo)
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
 
     print(format_topics(topics, args.limit))
     return 0
